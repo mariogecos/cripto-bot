@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+data_cache/
+*.log
+.pytest_cache/
+backtest/report.html
+backtest/resultados_*.txt
+build/
+dist/
+*.spec
