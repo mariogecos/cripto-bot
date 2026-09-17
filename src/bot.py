@@ -35,7 +35,7 @@ def run() -> None:
 
     modo = "DRY_RUN" if settings.dry_run else "REAL"
     notify.send(
-        f"Bot iniciado | {settings.symbol} {settings.interval} | "
+        f"Bot en funcionamiento | {settings.symbol} {settings.interval} | "
         f"estrategia {strat.key} | modo {modo}"
     )
 
