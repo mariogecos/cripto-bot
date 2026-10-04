@@ -10,6 +10,7 @@ import time
 from config import settings
 from src import notify
 from src.data import klines_to_df
+from src.db import get_db
 from src.exchange import Exchange
 from src.executor import Executor
 from src.risk import RiskManager
@@ -23,6 +24,16 @@ log = logging.getLogger("bot")
 
 
 def run() -> None:
+    db = get_db()
+    db.init_db()
+    db.record_bot_initialization(
+        symbol=settings.symbol,
+        interval=settings.interval,
+        strategy_name=strategy_from_settings(settings).key,
+        dry_run=settings.dry_run,
+        note="Bot arrancado",
+    )
+
     ex = Exchange()
     risk = RiskManager(
         quote_per_trade=settings.quote_per_trade,
@@ -51,6 +62,16 @@ def run() -> None:
 
             price = ex.get_price(settings.symbol)
             signal = strat.signal(df)
+            sl, tp = risk.stop_levels(price)
+            db.record_market_event(
+                settings.symbol,
+                settings.interval,
+                signal.value,
+                price,
+                strat.key,
+                stop_loss_price=sl,
+                take_profit_price=tp,
+            )
             log.info("precio=%.2f senal=%s", price, signal.value)
             executor.handle(signal, price)
         except Exception as exc:  # noqa: BLE001

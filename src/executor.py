@@ -5,6 +5,7 @@ import logging
 
 from config import settings
 from src import notify
+from src.db import get_db
 from src.exchange import Exchange
 from src.risk import RiskManager
 from src.strategy import Signal
@@ -25,6 +26,7 @@ class Executor:
     def __init__(self, exchange: Exchange, risk: RiskManager) -> None:
         self.ex = exchange
         self.risk = risk
+        self.db = get_db()
         self.pos = Position()
         self.base, self.quote = self._split_symbol(settings.symbol)
         self._step = self._load_step_size(settings.symbol)
@@ -72,6 +74,14 @@ class Executor:
         self.pos.qty = qty
         self.pos.entry = price
         self.pos.sl, self.pos.tp = sl, tp
+        self.db.upsert_open_position(
+            symbol=settings.symbol,
+            qty=qty,
+            avg_entry_price=price,
+            stop_loss_price=sl,
+            take_profit_price=tp,
+            liquidation_reason="risk-levels",
+        )
         notify.send(f"COMPRA {settings.symbol} @ {price:.2f} | SL {sl:.2f} TP {tp:.2f}")
 
     def _close(self, price: float, motivo: str) -> None:
@@ -84,6 +94,12 @@ class Executor:
         else:
             self.ex.market_sell(settings.symbol, self.pos.qty)
         self.risk.register_pnl(pnl)
+        self.db.close_position(
+            symbol=settings.symbol,
+            liquidation_reason=motivo,
+            stop_loss_price=self.pos.sl,
+            take_profit_price=self.pos.tp,
+        )
         notify.send(f"VENTA {settings.symbol} @ {price:.2f} | PnL {pnl:.2f} | {motivo}")
         self.pos = Position()
 

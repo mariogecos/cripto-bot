@@ -1,4 +1,5 @@
 """Carga y valida la configuracion desde variables de entorno (.env)."""
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -41,6 +42,16 @@ class Settings(BaseSettings):
     # Loop
     poll_seconds: int = 60
     dry_run: bool = True
+
+    # PostgreSQL local
+    postgres_dsn: str = Field(
+        default="",
+        validation_alias=AliasChoices("postgres_dsn", "POSTGRES_DSN"),
+    )
+    postgres_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("postgres_enabled", "POSTGRES_ENABLED"),
+    )
 
 
 settings = Settings()
