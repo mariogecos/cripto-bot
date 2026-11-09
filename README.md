@@ -1,5 +1,13 @@
 # cripto-bot
 
+## Arranque rapido
+
+```powershell
+python run.py
+```
+
+Este comando abre el menu principal del proyecto y permite iniciar el bot desde ahi.
+
 Bot de compra/venta automatica en Binance (spot). Estrategia de ejemplo:
 cruce de medias moviles + filtro RSI, con stop-loss / take-profit y limite de
 perdida diaria.

@@ -61,6 +61,14 @@ class Executor:
         qty = self.risk.position_size(price, self._step)
         if qty <= 0:
             log.warning("Tamano de posicion 0; se omite compra.")
+            self.db.record_market_event(
+                symbol=settings.symbol,
+                interval=settings.interval,
+                signal="BUY",
+                price=price,
+                strategy_name=settings.strategy,
+                note="intento-de-compra-fallido: tamaño de posición <= 0",
+            )
             return
         sl, tp = self.risk.stop_levels(price)
         if settings.dry_run:
@@ -68,8 +76,25 @@ class Executor:
                 "[DRY_RUN] COMPRA %s %s @ %.2f (SL %.2f / TP %.2f)",
                 qty, self.base, price, sl, tp,
             )
-        else:
+            return
+
+        try:
             self.ex.market_buy(settings.symbol, settings.quote_per_trade)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Compra rechazada por Binance: %s", exc)
+            self.db.record_market_event(
+                symbol=settings.symbol,
+                interval=settings.interval,
+                signal="BUY",
+                price=price,
+                strategy_name=settings.strategy,
+                stop_loss_price=sl,
+                take_profit_price=tp,
+                note=f"intento-de-compra-fallido: {exc}",
+            )
+            notify.send(f"INTENTO COMPRA FALLIDO {settings.symbol} @ {price:.2f} | {exc}")
+            return
+
         self.pos.open = True
         self.pos.qty = qty
         self.pos.entry = price
@@ -82,6 +107,15 @@ class Executor:
             take_profit_price=tp,
             liquidation_reason="risk-levels",
         )
+        self.db.record_trade(
+            symbol=settings.symbol,
+            side="BUY",
+            qty=qty,
+            price=price,
+            quote_amount=settings.quote_per_trade,
+            strategy_name=settings.strategy,
+            note="compra abierta",
+        )
         notify.send(f"COMPRA {settings.symbol} @ {price:.2f} | SL {sl:.2f} TP {tp:.2f}")
 
     def _close(self, price: float, motivo: str) -> None:
@@ -93,6 +127,15 @@ class Executor:
             )
         else:
             self.ex.market_sell(settings.symbol, self.pos.qty)
+            self.db.record_trade(
+                symbol=settings.symbol,
+                side="SELL",
+                qty=self.pos.qty,
+                price=price,
+                quote_amount=self.pos.qty * price,
+                strategy_name=settings.strategy,
+                note=motivo,
+            )
         self.risk.register_pnl(pnl)
         self.db.close_position(
             symbol=settings.symbol,

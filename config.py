@@ -11,18 +11,18 @@ class Settings(BaseSettings):
     # Binance
     binance_api_key: str = ""
     binance_api_secret: str = ""
-    binance_testnet: bool = True
+    binance_testnet: bool = False
 
     # Mercado
     symbol: str = "BTCUSDT"
     interval: str = "1h"
 
     # Riesgo
-    quote_per_trade: float = 10.0
-    max_open_positions: int = 10
-    stop_loss_pct: float = 0.03
-    take_profit_pct: float = 0.03
-    max_daily_loss: float = 10.0
+    quote_per_trade: float = 1.0
+    max_open_positions: int = 1
+    stop_loss_pct: float = 0.02
+    take_profit_pct: float = 0.04
+    max_daily_loss: float = 1.0
 
     # Estrategia
     strategy: str = "sma_cross_rsi"  # ver STRATEGIES en src/strategy.py
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
 
     # Loop
     poll_seconds: int = 60
-    dry_run: bool = True
+    dry_run: bool = False
 
     # PostgreSQL local
     postgres_dsn: str = Field(

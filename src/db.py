@@ -142,6 +142,32 @@ class Database:
                 );
                 """
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS binance_ip_registry (
+                    id SERIAL PRIMARY KEY,
+                    ip_address VARCHAR(45) NOT NULL UNIQUE,
+                    source VARCHAR(50) NOT NULL DEFAULT 'public_ip',
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS trade_history (
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(20) NOT NULL,
+                    side VARCHAR(10) NOT NULL CHECK (side IN ('BUY', 'SELL')),
+                    qty NUMERIC(20, 8) NOT NULL,
+                    price NUMERIC(20, 8) NOT NULL,
+                    quote_amount NUMERIC(20, 8) NOT NULL,
+                    strategy_name VARCHAR(100),
+                    note VARCHAR(255),
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+                """
+            )
         self.conn.commit()
 
     def upsert_open_position(
@@ -292,6 +318,54 @@ class Database:
         self.conn.commit()
         return row
 
+    def record_trade(
+        self,
+        *,
+        symbol: str,
+        side: str,
+        qty: float,
+        price: float,
+        quote_amount: float,
+        strategy_name: str | None = None,
+        note: str | None = None,
+    ) -> dict[str, Any] | None:
+        if not self._ensure_connection():
+            return None
+
+        row = {
+            "symbol": symbol.upper(),
+            "side": str(side).upper(),
+            "qty": float(qty),
+            "price": float(price),
+            "quote_amount": float(quote_amount),
+            "strategy_name": strategy_name,
+            "note": note,
+            "created_at": datetime.now(timezone.utc),
+        }
+
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO trade_history (
+                    symbol, side, qty, price, quote_amount,
+                    strategy_name, note, created_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    row["symbol"],
+                    row["side"],
+                    row["qty"],
+                    row["price"],
+                    row["quote_amount"],
+                    row["strategy_name"],
+                    row["note"],
+                    row["created_at"],
+                ),
+            )
+        self.conn.commit()
+        return row
+
     def record_bot_initialization(
         self,
         *,
@@ -340,6 +414,38 @@ class Database:
             )
         self.conn.commit()
         return row
+
+    def get_saved_binance_ip(self) -> str | None:
+        if not self._ensure_connection():
+            return None
+
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT ip_address FROM binance_ip_registry ORDER BY updated_at DESC LIMIT 1;"
+            )
+            row = cur.fetchone()
+            return row[0] if row else None
+
+    def save_binance_ip(self, ip_address: str) -> str | None:
+        if not self._ensure_connection():
+            return None
+
+        normalized = str(ip_address).strip()
+        if not normalized:
+            return None
+
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO binance_ip_registry (ip_address, source, updated_at, created_at)
+                VALUES (%s, 'public_ip', NOW(), NOW())
+                ON CONFLICT (ip_address)
+                DO UPDATE SET updated_at = NOW();
+                """,
+                (normalized,),
+            )
+        self.conn.commit()
+        return normalized
 
 
 db = Database()

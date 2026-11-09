@@ -15,7 +15,8 @@ def show_banner() -> None:
     print("2) Inicializar base de datos")
     print("3) Arrancar bot")
     print("4) Abrir backtest interactivo")
-    print("5) Salir")
+    print("5) Test rapido de compra/venta (smoke test)")
+    print("6) Salir")
     print("=" * 70)
 
 
@@ -34,7 +35,7 @@ def main() -> int:
     while True:
         show_banner()
         try:
-            choice = input("Elegí una opción (1-5): ").strip()
+            choice = input("Elegí una opción (1-6): ").strip()
         except EOFError:
             print("\nSe recibió EOF del terminal. Saliendo del menú.")
             return 0
@@ -48,10 +49,12 @@ def main() -> int:
         elif choice == "4":
             run_command("Backtest interactivo", [sys.executable, "interactive_backtest.py"])
         elif choice == "5":
+            run_command("Test rápido de compra/venta", [sys.executable, "-c", "from src.bot import run_minimum_trade_smoke_test; run_minimum_trade_smoke_test()"])
+        elif choice == "6":
             print("\nChau 👋")
             return 0
         else:
-            print("Opción inválida. Elegí una opción del 1 al 5.")
+            print("Opción inválida. Elegí una opción del 1 al 6.")
 
         input("\nPresioná Enter para volver al menú...")
 
